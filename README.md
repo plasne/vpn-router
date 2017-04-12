@@ -226,7 +226,7 @@ dhcp-option=tag:br0,option:dns-server,###.###.###.###,###.###.###.###
 
 ![Dnsmasq](/images/dnsmasq.png)
 
-Replace ###.###.###.### with the IP addresses of your desired DNS servers. Save again.
+Replace ###.###.###.### with the IP addresses of your desired DNS servers. Save again. NordVPN offers DNS on the same IP address as the VPN exit node, so that is an option. Alternatively you could consider something like the OpenNIC Project (https://www.opennicproject.org/) or any other DNS provider that you trust. However, I will say again, you don't want to use an autocast server, while that gets you the lowest latency by placing the server near you, that works against the goal of masking your traffic.
 
 You will notice this is tagged to apply only to the br0 subnet, so devices on br1 will get something different. You could define it here, but there are some GUI options for this, so let's use that. Go to Basic / Network and look at the WAN Settings:
 
@@ -235,6 +235,63 @@ You will notice this is tagged to apply only to the br0 subnet, so devices on br
 The DNS Server is set to "Auto", which supplies the Google DNS servers (8.8.8.8 and 8.8.4.4). You could change this to "Manual" and supply your own. Remember that because of the setting above, this is only going to apply to our clear network, so using an autocast DNS like Google should be fine. I did notice one other interesting thing though, which is it added the DNS options from my modem, you can see this on the Status / Overview tab:
 
 ![WAN Overview](/images/wan-overview.png)
+
+It is a good idea to ensure the VPN clients can only access the specified DNS server, that way they don't have a local configuration option that causes a DNS leak by using an autocast or local server. To do that, go to Administration / Scripts / Firewall and put in the following:
+
+```bash
+iptables -I FORWARD -i br0 -p udp --dport 53 -j DROP
+iptables -I FORWARD -i br0 -p tcp --dport 53 -j DROP
+iptables -I FORWARD -i br0 -p udp --dport 53 -d ###.###.###.### -j ACCEPT
+iptables -I FORWARD -i br0 -p tcp --dport 53 -d ###.###.###.### -j ACCEPT
+iptables -I FORWARD -i br0 -o vlan2 -j DROP
+```
+
+The first 2 lines instruct the router to drop all packets it would forward to port 53 (DNS) over both UDP and TCP. The next 2 lines instruct the router to allow all packets it would forward to port 53 over both UDP and TCP that is bound for a specific IP address (the IP address of the desired VPN DNS server). If you have more than one DNS server you supplied to Dnsmasq, add those as new pairs of lines after line 4. The section on Kill Switch will address what line 5 does.
+
+You need to save and these settings won't take effect until you reboot the router. You need to reboot before this next section, so do that now.
+
+The order of these rules is important, the first rule that the system comes across it will stop processing and enact that rule, so it might at first seem odd that we are dropping all the traffic before we are accepting it. Well, in fact we aren't because the rules are going to be entered in reverse order. The -I flag is INSERTing the rule into the FORWARD table and because we didn't specify a position, it is inserting it at the top. To see that, go to Tools / System Commands and execute the following:
+
+```bash
+iptables -S FORWARD
+```
+
+![iptables FORWARD](/images/iptables-forward.png)
+
+You should observe a few things:
+
+* The -P rule is the default rule (if nothing else is processed, do this) which should be DROP.
+* All traffic to our vlan2 (which is our WAN, our clear internet traffic) is dropped from the VPN network (more on that later).
+* Our DNS server IPs are ACCEPTed for port 53 traffic.
+* Then all other port 53 traffic is DROPPed.
+* Finally, everything going to tun11 (which is our VPN tunnel) is ACCEPTed.
+
+You should now test your connection and the settings we have applied by doing a few things. First, on a computer connected to the VPN, go to http://ipleak.net and see if your IP address is showing the exit node for your VPN and DNS address showing whatever you set that to:
+
+![ipleak.net](/images/ipleak-net.png)
+
+We will discuss how to block WebRTC later, but at least make sure the IP address and DNS are right. Next, we need to make sure that this is the only DNS server we can contact, so open up a command prompt on the same client computer and type:
+
+```bash
+nslookup
+```
+
+Then make sure your DNS server selection(s) are set properly being passed to this client by typing:
+
+```bash
+server
+exit
+```
+
+You should see that only the correct DNS server(s) are returned. Next you can verify that you cannot get to other DNS servers by typing:
+
+```bash
+telnet 8.8.8.8 53
+```
+
+You should timeout eventually because the connection couldn't be made. Of course you should be able to connect to the DNS server(s) you chose. If you are using Windows, the Telnet client is not installed by default so you will need to install that (it is a Windows Feature). Here is what the entire exchange should look like:
+
+![bash test DNS](/images/bash-test-dns.png)
 
 
 
