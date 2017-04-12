@@ -293,6 +293,15 @@ You should timeout eventually because the connection couldn't be made. Of course
 
 ![bash test DNS](/images/bash-test-dns.png)
 
+## The kill switch
+
+The steps to implement the kill switch were applied when we created the DNS rules for the firewall script above, however, I wanted to make this a section because it is a very important rule. The rule should look like this:
+
+```bash
+iptables -I FORWARD -i br0 -o vlan2 -j DROP
+```
+
+This rule states that any traffic that would forward from br0 (VPN subnet) to vlan2 (WAN, internet) should be dropped. Any rules that are going to route around the VPN would need to come before this rule (which is to say they need to be placed before it since the order will be inverted), but more on that later.
 
 
 ## Future topics
