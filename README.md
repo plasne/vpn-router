@@ -28,7 +28,6 @@ It would be great if this were as simple as all your devices use a VPN all the t
 * Many services will warn that the traffic is unusual (your IP says your in Europe and accessing a bank in the US for instance), and you will need to provide addition validation.
 * Your devices might be able to get internet services from a variety of places (cell, multiple wifi, etc.), make sure you know how you are connected.
 * Latency can be a problem since most of the places you would want to exit from are far away from the US.
-* Skype over VPN is OK, but not a great experience.
 
 ## Considerations for a VPN provider
 
@@ -342,7 +341,24 @@ ip route show table 300
 
 ![ip rule and ip route 300](/images/iprule-iproute300.png)
 
+From a client computer you should be able to route between the subnets now.
 
+## Excluding specific domains from VPN
+
+I use Bank of America, which unfortunately doesn't allow a VPN to be used to access their site. I will probably find other examples like this, so I created a script that can run when the firewall is started and then once a day and put special routing rules for a list of domains that bypass the VPN.
+
+To do this, we first need a place to store the scripts. There are variety of options:
+
+* You could store in the flash memory of the router (search for JFFS for information on how to do that), but then you have to put the files back out there every time you upgrade the router.
+* You could store them on a website somewhere, but since these are firewall rules, I wasn't excited about that option.
+* You could store them on a CIFS share, but I don't keep a server running anywhere.
+* You could store them on USB, that's what I did because I had a small USB thumbdrive sitting around.
+
+For the USB, just plug it in, and then go to USB and NAS / USB Support and click Refresh to see it. It will even show you the name it mounted it under:
+
+![USB](/images/usb.png)
+
+Easy enough, now you can put the exclude.sh script I have here on GitHub on your storage. You then need to create a file that simply lists all the domains you want to exclude on separate lines (exclude.txt is an example of this).
 
 
 
