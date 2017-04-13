@@ -66,11 +66,23 @@ There is no such thing as perfect security, but if you want the best you can get
 
 ## Choice of router
 
-There are 3 main options for firmware on a VPN router: DD-WRT, Tomato, OpenWrt
+There are 3 main options for firmware on a VPN router: DD-WRT, TomatoUSB, OpenWrt. I only tried TomatoUSB, so I cannot comment on the others.
 
-DISCUSS
+I chose the ASUS RT-AC3200 router, mostly because it had 3 radios and a 1.0Ghz dual-core processor. Less expensive options probably work fine too.
+
+I purchased this router from flashrouters.com so that it came pre-installed with TomatoUSB, but I did have to upgrade the firmware to the latest version.
 
 ## Desired configuration
+
+My desired configuration consisted of the following:
+
+* 2 subnets, 1 on VPN and 1 without
+* Routing between the subnets so devices on each could talk to each other
+* 2 WiFi SSIDs, 1 for VPN and 1 for clear
+* At least 1 5GHz radio and 1 2.4GHz radio for each
+* A way to connect to specific services without VPN even when in the VPN subnet
+
+I was able to achieve everything I wanted in that configuration, but it was a lot of work and research. This guide will walk you through how to configure the same thing, and hopefully give you a good enough understanding of the system that you could configure things any way you like.
 
 ## Multiple subnets
 
@@ -358,10 +370,58 @@ For the USB, just plug it in, and then go to USB and NAS / USB Support and click
 
 ![USB](/images/usb.png)
 
-Easy enough, now you can put the exclude.sh script I have here on GitHub on your storage. You then need to create a file that simply lists all the domains you want to exclude on separate lines (exclude.txt is an example of this).
+Easy enough, now you can put the exclude.sh script I have here on GitHub on your storage. You then need to create a file that simply contains on separate lines what you want to filter (exclude.txt is an example):
+* domain name, ex. bankofamerica.com
+* CIDR address, ex. 111.222.333.0/24
+* # for comments
 
+To discover what you need to exclude, there are a variety of tools:
+* You can go to the site with devtools on in the browser and look at what was called.
+* You can use nslookup to see what the IP addresses for a domain name are.
+* You can use http://ipinfo.io/<ASN#> to get IP address blocks of ASN #s (more on that later).
+* You can monitor the traffic going through your router at Status / Web Usage.
+  * Unfortunately, this only logs HTTP traffic, but you can get the domains that were called by going to Advanced / DHCP/DNS and adding the line log-queries to the Dnsmasq. Once you do that, you will see the DNS requests in your Status / Logs.
 
+## Excluding a whole ASN of CIDR addresses
 
-## Future topics
-web RTC
-DNSCrypt / Tunneling DNS
+The previous method works well if there are a handful of addresses or CIDR ranges that you need to exclude, but in the case of Netflix, there are hundreds of CIDR ranges, so I wrote another script called exclude-asn.sh and included it here. Again, you can put it on your storage and then run:
+
+```bash
+sh exclude-asn.sh AS2906 302 netflix 502
+```
+
+This will query http://ipinfo.io/AS2906 and get all the Netflix CIDR ranges and create the necessary bypass rules for them. In the above example, "302" is the ip route table that will be created, "netflix" is the iptable that will be created, and "502" is the priority in ip rule.
+
+The easiest way I found to get the ASN is to do an nslookup on a domain, get the IP address, go to http://ipinfo.io/<ipaddress> and it will show you the ASN.
+
+To back out all those changes, you can run:
+
+```bash
+sh delete-asn.sh AS2906 302 netflix 502
+```
+
+## Scheduling exclusion updates
+
+If you have any domain names or if the CIDR address ranges change from time to time, you will need to schedule the rebuilding of those rules. You can do that with a cron job, simply go to Administration / Scripts and add something like:
+
+```bash
+cru a exclude "0 4 * * * sh /tmp/mnt/Lexar/exclude.sh /tmp/mnt/Lexar/exclude.txt"
+cru a netflix "0 5 * * * sh /tmp/mnt/Lexar/exclude-asn.sh AS2906 302 netflix 502"
+```
+
+TomatoUSB uses cru for scheduling cron jobs. This tells the exclude job to run at 4am and the netflix job to run at 5am each day. The scripts simply simply overwrite the rules so you can run them whenever.
+
+To get status information about your cron jobs, you need to enable them to go to your log in Administation / Logging:
+
+![cron logging](/images/cron-logging.png)
+
+Once you enable that, the log messages should show up in Status / Logs the next time it runs.
+
+## Blocking WebRTC
+
+The good news is if you do nothing to block WebRTC, as long as you going through the router VPN, it won't matter because the IP address that is given out will be an internal IP. However, I would still recommend blocking WebRTC for those times you aren't on VPN.
+
+* Firefox: browse to "about:config" and set "media.peerconnection.enabled" to "false".
+* Chrome: browse to "about:flags" and set "WebRTC Stun origin header" to "disabled".
+
+If those don't work, there are plenty of browser extensions that block WebRTC.

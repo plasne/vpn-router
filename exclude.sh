@@ -12,18 +12,38 @@ ip route flush table 301
 iptables -F exclude
 
 # read domains from file
-while read -r domain || [[ -n "$domain" ]]
+while read -r entry || [[ -n "$entry" ]]
 do
 
-  # nslookup the IP addresses
-  nslookup $domain | awk -F' ' 'NR>4 { print $3 }' | while read -r ip
-  do
+  # ignore if a comment
+  comment=$(echo "$entry" | awk '/^#/')
+  if [[ -z "$comment" ]]
+  then
 
-    # add the routes and firewall rules
-    ip route add $ip/32 via 192.168.0.1 table 301
-    iptables -A exclude -i br0 -o vlan2 -d $ip/32 -j ACCEPT
+    # determine if it is a CIDR address or domain
+    cidr=$(echo "$entry" | awk '{match($0,/([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\/([0-9]{1,2})/); cidr = substr($0,RSTART,RLENGTH); if (length(cidr) > 0) print cidr}')
+    if [[ -z $cidr ]]
+    then
 
-  done
+      # nslookup the IP addresses
+      nslookup "$entry" | awk '$1 ~ /^ *Name:/ {i=1;next} i > 0 {match($0,/([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})/); ip = substr($0,RSTART,RLENGTH); if (length(ip) > 0) print ip}' | while read -r ip
+      do
+
+        # add the routes and firewall rules
+        ip route add $ip/32 via 192.168.0.1 table 301
+        iptables -A exclude -i br0 -o vlan2 -d $ip/32 -j ACCEPT
+
+      done
+
+    else
+
+      # add the routes and firewall rules
+      ip route add $cidr via 192.168.0.1 table 301
+      iptables -A exclude -i br0 -o vlan2 -d $cidr -j ACCEPT
+
+    fi
+  fi
+
 done < "$filename"
                                                                                                     
 # add RETURN to the iptables
