@@ -277,7 +277,7 @@ You should observe a few things:
 * Then all other port 53 traffic is DROPPed.
 * Finally, everything going to tun11 (which is our VPN tunnel) is ACCEPTed.
 
-You should now test your connection and the settings we have applied by doing a few things. First, on a computer connected to the VPN, go to http://ipleak.net and see if your IP address is showing the exit node for your VPN and DNS address showing whatever you set that to:
+You should now test your connection and the settings we have applied by doing a few things. First, on a computer connected to the VPN, go to https://ipleak.net and see if your IP address is showing the exit node for your VPN and DNS address showing whatever you set that to:
 
 ![ipleak.net](/images/ipleak-net.png)
 
@@ -373,7 +373,7 @@ For the USB, just plug it in, and then go to USB and NAS / USB Support and click
 Easy enough, now you can put the exclude.sh script I have here on GitHub on your storage. You then need to create a file that simply contains on separate lines what you want to filter (exclude.txt is an example):
 * domain name, ex. bankofamerica.com
 * CIDR address, ex. 111.222.333.0/24
-* # for comments
+* \# for comments
 
 To discover what you need to exclude, there are a variety of tools:
 * You can go to the site with devtools on in the browser and look at what was called.
@@ -409,7 +409,7 @@ cru a exclude "0 4 * * * sh /tmp/mnt/Lexar/exclude.sh /tmp/mnt/Lexar/exclude.txt
 cru a netflix "0 5 * * * sh /tmp/mnt/Lexar/exclude-asn.sh AS2906 302 netflix 502"
 ```
 
-TomatoUSB uses cru for scheduling cron jobs. This tells the exclude job to run at 4am and the netflix job to run at 5am each day. The scripts simply simply overwrite the rules so you can run them whenever.
+Save. TomatoUSB uses cru for scheduling cron jobs. This tells the exclude job to run at 4am and the netflix job to run at 5am each day. The scripts simply simply overwrite the rules so you can run them whenever.
 
 To get status information about your cron jobs, you need to enable them to go to your log in Administation / Logging:
 
@@ -425,3 +425,14 @@ The good news is if you do nothing to block WebRTC, as long as you going through
 * Chrome: browse to "about:flags" and set "WebRTC Stun origin header" to "disabled".
 
 If those don't work, there are plenty of browser extensions that block WebRTC.
+
+## Final Tests
+
+I would use both...
+* https://ipleak.net
+* http://ipleak.com
+...for testing to verify that everything is working properly and to get lots of browser extensions to block tracking.
+
+Also, you should verify that your DNS is not leaking again and that all calls to DNS servers other than your desired one(s) are being blocked (you can use telnet for that).
+
+Hopefully this guide helped you configure your TomatoUSB router.
