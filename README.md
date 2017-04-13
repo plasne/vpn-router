@@ -301,7 +301,49 @@ The steps to implement the kill switch were applied when we created the DNS rule
 iptables -I FORWARD -i br0 -o vlan2 -j DROP
 ```
 
-This rule states that any traffic that would forward from br0 (VPN subnet) to vlan2 (WAN, internet) should be dropped. Any rules that are going to route around the VPN would need to come before this rule (which is to say they need to be placed before it since the order will be inverted), but more on that later.
+This rule states that any traffic that would forward from br0 (VPN subnet) to vlan2 (WAN, internet) should be dropped. Any rules that are going to route around the VPN would need to come before this rule (which is to say they need to be placed after it since the order will be inverted), but more on that later.
+
+## Routing between subnets
+
+Before we added and started the VPN tunnel, we could route between the 192.168.11.0/24 subnet and 192.168.12.0/24 subnet, but now we cannot route to the 12 subnet from the 11 subnet because our traffic is being hijacked by the VPN tunnel. To see what is causing that, we need to go to Tools / System Commands and:
+
+```bash
+ip rule show
+echo " "
+ip route show table 311
+echo " "
+ip route show table main
+```
+
+![ip rule and ip route 311](/images/iprule-iproute311.png)
+
+This will show the rules so we can see what routing is applied. We see that the local routing table is applied, then a custom table of 311 (which only applies to things marked 0x137, which is our br0 subnet), then our main table, and finally our default table. If we look at table 311 it only has 1 rule, route everything over the VPN tunnel (tun11). If we look at our main table, we see that the routing between our subnets is there. The problem is we will never get to the main table because our traffic is going to go out the tun11 device first.
+
+What we need to do is create our own custom routing table that puts the routing between our subnets at a lower priority number (applied first). To do this, we need to go to Administration / Scripts / Init and add:
+
+```bash
+ip rule add prio 500 from all table 300
+```
+
+Save and then go to Administration / Scripts / Firewall and add the routes to table 300:
+
+```bash
+ip route add 192.168.12.0/24 dev br1 table 300
+ip route add 192.168.11.0/24 dev br0 table 300
+```
+
+Save and reboot. After the reboot, we can check to make sure our changes were applied by going to Tools / System Commands and running:
+
+```bash
+ip rule show
+echo " "
+ip route show table 300
+```
+
+![ip rule and ip route 300](/images/iprule-iproute300.png)
+
+
+
 
 
 ## Future topics
