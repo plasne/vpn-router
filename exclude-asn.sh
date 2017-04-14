@@ -8,7 +8,7 @@ prio="$4"
 iptables -N $name
 
 # remove routing (if exists), just in case something goes wrong
-iptables -D FORWARD -i br0 -j exclude
+iptables -D FORWARD -i br0 -j $name
 ip rule del prio $prio from all table $table
 
 # clear tables
