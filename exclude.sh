@@ -6,6 +6,7 @@ iptables -N exclude
 
 # remove routing (if exists), just in case something goes wrong
 iptables -D FORWARD -i br0 -j exclude
+ip rule del prio 501 from all table 301
 
 # clear tables
 ip route flush table 301
@@ -51,3 +52,4 @@ iptables -A exclude -j RETURN
 
 # add routing
 iptables -I FORWARD -i br0 -j exclude
+ip rule add prio 501 from all table 301
