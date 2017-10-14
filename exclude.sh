@@ -11,6 +11,9 @@ iptables -D FORWARD -i br0 -j exclude
 ip route flush table 301
 iptables -F exclude
 
+# add table
+ip rule add prio 501 from all table 301
+
 # read domains from file
 while read -r entry || [[ -n "$entry" ]]
 do
