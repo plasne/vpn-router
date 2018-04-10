@@ -250,14 +250,31 @@ The DNS Server is set to "Auto", which supplies the Google DNS servers (8.8.8.8 
 It is a good idea to ensure the VPN clients can only access the specified DNS server, that way they don't have a local configuration option that causes a DNS leak by using an autocast or local server. To do that, go to Administration / Scripts / Firewall and put in the following:
 
 ```bash
+iptables -I INPUT -p udp -d 192.168.12.0/24 --dport 53 -j DROP
+iptables -I INPUT -p tcp -d 192.168.12.0/24 --dport 53 -j DROP
+```
+
+These instruct the router to drop all packets that are going to the clear network 192.168.12.0/24 over port 53 (DNS) over both UDP and TCP; this is necessary because I will be running DNS forwarding on 192.168.12.1 and we don't want traffic going there.
+
+```bash
 iptables -I FORWARD -i br0 -p udp --dport 53 -j DROP
 iptables -I FORWARD -i br0 -p tcp --dport 53 -j DROP
+```
+
+These instruct the router to drop all packets that would forward to port 53 (DNS) over both UDP and TCP.
+
+```bash
 iptables -I FORWARD -i br0 -p udp --dport 53 -d ###.###.###.### -j ACCEPT
 iptables -I FORWARD -i br0 -p tcp --dport 53 -d ###.###.###.### -j ACCEPT
+```
+
+These instruct the router to allow all packets it would forward to port 53 over both UDP and TCP that is bound for a specific IP address (the IP address of the desired VPN DNS server). If you have more than one DNS server you supplied to Dnsmasq, add those as new pairs of lines after these.
+
+```bash
 iptables -I FORWARD -i br0 -o vlan2 -j DROP
 ```
 
-The first 2 lines instruct the router to drop all packets it would forward to port 53 (DNS) over both UDP and TCP. The next 2 lines instruct the router to allow all packets it would forward to port 53 over both UDP and TCP that is bound for a specific IP address (the IP address of the desired VPN DNS server). If you have more than one DNS server you supplied to Dnsmasq, add those as new pairs of lines after line 4. The section on Kill Switch will address what line 5 does.
+This will be covered in the kill switch section below.
 
 You need to save and these settings won't take effect until you reboot the router. You need to reboot before this next section, so do that now.
 
