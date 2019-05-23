@@ -12,6 +12,9 @@ ip rule del prio 501 from all table 301
 ip route flush table 301
 iptables -F exclude
 
+# add table
+ip rule add prio 501 from all table 301
+
 # read domains from file
 while read -r entry || [[ -n "$entry" ]]
 do
@@ -52,4 +55,7 @@ iptables -A exclude -j RETURN
 
 # add routing
 iptables -I FORWARD -i br0 -j exclude
+<<<<<<< HEAD
 ip rule add prio 501 from all table 301
+=======
+>>>>>>> d27f8e1ca04f0e00a0bbe159e90182e3ae674864
